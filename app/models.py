@@ -14,6 +14,15 @@ from hashlib import md5
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+followers = sa.Table(
+    'followers',
+    db.metadata,
+    sa.Column('follower_id', sa.Integer, sa.ForeignKey('user.id'),
+              primary_key=True),
+    sa.Column('followed_id', sa.Integer, sa.ForeignKey('user.id'),
+              primary_key=True)
+)
+
 
 class User(db.Model, UserMixin):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
@@ -24,6 +33,15 @@ class User(db.Model, UserMixin):
     last_seen: so.Mapped[Optional[datetime]] = so.mapped_column(default=func.now(timezone='UTC'))
 
     posts: so.WriteOnlyMapped['Post'] = so.relationship(back_populates='author')
+
+    following: so.WriteOnlyMapped['User'] = so.relationship(
+        secondary=followers, primaryjoin=(followers.c.follower_id == id),
+        secondaryjoin=(followers.c.followed_id == id),
+        back_populates='followers')
+    followers: so.WriteOnlyMapped['User'] = so.relationship(
+        secondary=followers, primaryjoin=(followers.c.followed_id == id),
+        secondaryjoin=(followers.c.follower_id == id),
+        back_populates='following')
 
     def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
